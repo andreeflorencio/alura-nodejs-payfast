@@ -34,6 +34,7 @@ module.exports= (app)=>{
             }else{
                 console.log('Pagamento criado');
                 res.location('/pagamentos/pagamento/' + resultado.insertId);
+                pagamento.id = resultado.insertId;
                 res.status(201).json(pagamento)
             }            
             
