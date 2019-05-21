@@ -10,9 +10,11 @@
   "author": "andre.luis.florencio@gmail.com",
   "license": "ISC",
   "dependencies": {
+    "body-parser": "^1.19.0",
     "consign": "^0.1.6",
     "cors": "^2.8.5",
     "express": "^4.17.0",
+    "mysql": "^2.17.1",
     "nodemon": "^1.19.0"
   }
 }
