@@ -2,33 +2,53 @@ const PAGAMENTO_CRIADO = "CRIADO";
 const PAGAMENTO_CONFIRMADO = "CONFIRMADO";
 const PAGAMENTO_CANCELADO = "CANCELADO";
 
+const logger = require('../servicos/logger.js')
+
 module.exports= (app)=>{
+
     app.get('/pagamentos', (req, res)=>{
         res.send('OK');
     });
 
     app.get('/pagamentos/pagamento/:id', (req, res)=>{
         let id = req.params.id;
-        console.log('Consultando pagamento: ' + id);
+        console.log(`Consultando pagamento: ${id}`);
 
-        let connection = app.persistencia.connectionFactory();
-        let pagamentoDao = new app.persistencia.PagamentoDao(connection);
+        logger.info(`Consultando pagamento: ${id}`);
 
-        pagamentoDao.buscaPorId(id, (err, resultado)=>{
-            if(err){
-                console.log('Erro ao consultar no banco: ' + err);
-                res.status(500).send(err);
+        let memcachedClient = app.servicos.memcachedClient();
+
+        memcachedClient.get('pagamento-' + id, function (err, retorno) {
+            if (err || !retorno) {
+                console.log('MISS - chave não encontrada');
+
+                let connection = app.persistencia.connectionFactory();
+                let pagamentoDao = new app.persistencia.PagamentoDao(connection);
+
+                pagamentoDao.buscaPorId(id, (err, resultado)=>{
+                    if(err){
+                        console.log('Erro ao consultar no banco: ' + err);
+                        res.status(500).send(err);
+                        return;
+                    }
+
+                    console.log('Pagamento encontrado: ' + JSON.stringify(resultado));
+                    res.status(200).json(resultado);
+                    return;
+
+                })
+
+
+            } else {
+                console.log('HIT - valor: ' + JSON.stringify(retorno));
+                res.status(200).json(retorno);
                 return;
+
             }
-
-            console.log('Pagamento encontrado: ' + JSON.stringify(resultado));
-            res.status(200).json(resultado);
-            return;
-
-        })
+            
+        });     
         
-        
-    })
+    });
 
     app.delete('/pagamentos/pagamento/:id', (req, res)=>{
         
@@ -106,6 +126,13 @@ module.exports= (app)=>{
                 pagamento.id = resultado.insertId;
                 console.log('Pagamento criado');
 
+                let memcachedClient = app.servicos.memcachedClient();
+
+                memcachedClient.set('pagamento-'+pagamento.id, pagamento, 60000, function(err){
+                    console.log('Nova chave adicionada ao cache: pagamento-'+pagamento.id);
+                    
+                })
+
                 if(pagamento.forma_de_pagamento == 'cartao'){
                     let cartao = req.body['cartao'];
                     console.log(cartao);
@@ -154,5 +181,5 @@ module.exports= (app)=>{
             }            
             
         });
-    })
+    });
 }
